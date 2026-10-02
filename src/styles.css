@@ -376,68 +376,69 @@ h1{font-family:'Noto Sans SC',sans-serif;font-size:27px;line-height:1.4;font-wei
   .topbar{height:55px;padding:0 18px}
   .brand{font-size:17px}
   .brand-mark{width:28px;height:28px}
-  .today-label{font-size:10px}
+  .today-label{font-size:11px}
   .topbar-right{gap:8px}
   .workspace{display:block;min-height:calc(100vh - 55px)}
   .sidebar{display:none}
   .main-content{padding:27px 18px 95px}
   .page-heading{display:block;margin-bottom:21px}
   h1{font-size:22px}
-  .heading-copy{font-size:11px}
+  .heading-copy{font-size:12px}
   .date-control{margin-top:17px;width:100%}
   .setup-strip{min-height:60px;padding:11px 12px;margin-bottom:24px}
   .cinema-field select{min-width:0;flex:1;width:100%}
   .add-cinema-button{padding:0 7px;white-space:nowrap}
-  .settings-link{height:34px;margin-left:12px;padding-left:12px;font-size:10px}
+  .settings-link{height:34px;margin-left:12px;padding-left:12px;font-size:11px}
   .movie-rail{grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:13px 9px}
   .movies-heading{align-items:flex-start;flex-direction:column;gap:9px}
   .library-heading-actions{width:100%;gap:2px}
   .movie-filter{width:auto;flex:1;height:28px;padding:0 6px}
-  .movie-filter input{font-size:9px}
-  .movies-heading>.library-heading-actions .text-action{font-size:9px;gap:4px;padding:5px 3px}
+  .movie-filter input{font-size:10px}
+  .movies-heading>.library-heading-actions .text-action{font-size:10px;gap:4px;padding:5px 3px}
   .movies-heading>.library-heading-actions .text-action svg{width:13px}
   .movie-library-empty{min-height:110px}
-  .movie-title{font-size:10px}
-  .movie-meta{font-size:8px;gap:4px}
+  .movie-title{font-size:11px}
+  .movie-meta{font-size:9px;gap:4px}
   .movie-edit{width:27px;height:27px}
   .schedule-header{padding-top:18px}
   .schedule-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .generate-button{height:32px;padding:0 10px;font-size:10px}
+  .generate-button{height:34px;padding:0 10px;font-size:11px}
   .empty-schedule{min-height:185px;padding:20px 14px}
   .empty-copy{max-width:260px;line-height:1.7}
   .timeline{padding:0 11px}
-  .timeline-topline{font-size:9px}
-  .time-column{width:42px;font-size:10px}
+  .timeline-topline{font-size:10px}
+  .time-column{width:42px;font-size:11px}
   .time-track{left:19px}
   .screening-block,.cleaning-row{margin-left:44px}
   .screening-block{gap:6px;min-height:70px}
   .drag-handle{width:20px;height:34px}
   .screening-block>img{width:29px;height:41px}
-  .screening-info strong{font-size:10px}
-  .screening-info span{font-size:8px}
+  .screening-info strong{font-size:11px}
+  .screening-info span{font-size:9px}
   .edit-time{gap:3px}
   .edit-time>span{display:none}
-  .edit-time input{font-size:9px;width:83px;padding:5px 3px}
+  .edit-time input{font-size:10px;width:83px;padding:5px 3px}
   .add-screening,.remove-screening{width:24px;height:28px}
-  .cleaning-row{padding-left:36px;gap:5px;font-size:8px}
-  .cleaning-duration{font-size:8px}
-  .timeline-footer>span{font-size:8px}
-  .timeline-footer>button{padding:0 7px;font-size:9px}
-  .summary-row{gap:0;justify-content:space-between;font-size:8px}
+  .cleaning-row{padding-left:36px;gap:5px;font-size:9px}
+  .cleaning-duration{font-size:9px}
+  .timeline-footer>span{font-size:9px}
+  .timeline-footer>button{padding:0 7px;font-size:10px}
+  .summary-row{gap:0;justify-content:space-between;font-size:9px}
   .summary-row strong{display:block;margin:4px 0 0}
   .mobile-tabs{height:62px;position:fixed;z-index:7;bottom:0;left:0;right:0;padding-bottom:env(safe-area-inset-bottom);height:calc(62px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center}
-  .mobile-tabs button{position:relative;min-width:80px;height:52px;border:0;background:transparent;color:#8b938c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:9px}
+  .mobile-tabs button{position:relative;min-width:80px;height:52px;border:0;background:transparent;color:#8b938c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:10px}
   .mobile-tabs button.active{color:var(--green)}
   .mobile-tabs button i{position:absolute;top:4px;right:15px;font-style:normal;background:#e9efe8;border-radius:9px;padding:1px 5px;font-size:8px}
   .history-heading{display:flex;align-items:flex-end}
-  .history-heading .history-total{font-size:9px}
+  .history-heading .history-total{font-size:10px}
   .history-calendar-layout{display:flex;flex-direction:column;gap:12px}
   .calendar-panel,.calendar-detail{width:100%}
   .calendar-panel{padding:13px}
   .calendar-day{height:41px}
   .calendar-detail{padding:14px}
-  .detail-heading h2{font-size:15px}
-  .day-history-summary{flex-direction:column;gap:6px}
+  .detail-heading h2{font-size:16px}
+  .detail-heading>span{font-size:10px}
+  .day-history-summary{flex-direction:column;gap:6px;font-size:10px}
   .empty-history{min-height:230px;padding:18px;text-align:center}
   .empty-history>span{max-width:240px;line-height:1.7}
   .history-entry{padding:13px}
@@ -445,12 +446,12 @@ h1{font-family:'Noto Sans SC',sans-serif;font-size:27px;line-height:1.4;font-wei
   .history-entry-main{display:flex;flex-direction:column;align-items:stretch;gap:10px;padding-top:11px}
   .hall-manager-row{flex-wrap:wrap}
   .hall-start-select{flex:1 1 90px}
-  .history-date>span{font-size:13px}
-  .history-date small{font-size:8px}
-  .history-details>strong{font-size:10px}
-  .history-details>span{font-size:8px}
-  .history-times{font-size:9px}
-  .history-load{height:29px;font-size:9px}
+  .history-date>span{font-size:14px}
+  .history-date small{font-size:9px}
+  .history-details>strong{font-size:11px}
+  .history-details>span{font-size:9px}
+  .history-times{font-size:10px}
+  .history-load{height:30px;font-size:10px}
   .history-delete{display:grid}
   .modal-backdrop{align-items:flex-end;padding:0}
   .modal{border-radius:9px 9px 0 0;padding:22px 19px calc(20px + env(safe-area-inset-bottom));max-height:90vh}
@@ -459,7 +460,7 @@ h1{font-family:'Noto Sans SC',sans-serif;font-size:27px;line-height:1.4;font-wei
   .history-preview-hall{width:190px}
   .search-results{max-height:38vh}
   .library-tools{align-items:stretch}
-  .library-tools>.generate-button{padding:0 9px;font-size:9px}
+  .library-tools>.generate-button{padding:0 9px;font-size:10px}
   .library-results{max-height:40vh}
   .editor-fields{grid-template-columns:minmax(0,1fr) 112px}
   .hall-switcher{align-items:flex-start;flex-direction:column;gap:8px;margin-bottom:16px}
