@@ -51,6 +51,9 @@ h1{font-family:'Noto Sans SC',sans-serif;font-size:27px;line-height:1.4;font-wei
 .cinema-select:focus{border-color:#9bb09d}
 .add-cinema-button{height:32px;border:1px solid #dce6da;background:#f5f8f3;color:var(--green);border-radius:4px;padding:0 9px;display:flex;align-items:center;gap:5px;font-size:10px;cursor:pointer}
 .add-cinema-button:hover{background:#eaf2e8}
+.remove-cinema-button{width:32px;height:32px;border:1px solid #eadbd7;background:#fff8f5;color:#b36c5c;border-radius:4px;display:grid;place-items:center;cursor:pointer}
+.remove-cinema-button:hover{background:#f8e9e4}
+.remove-cinema-button:disabled{opacity:.45;cursor:not-allowed}
 .settings-link{height:36px;margin-left:24px;padding:0 0 0 18px;border:0;border-left:1px solid var(--line);background:none;color:#7a827b;font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
 .settings-link:hover{color:var(--green)}
 .section-heading{display:flex;align-items:center}

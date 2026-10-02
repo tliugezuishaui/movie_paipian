@@ -53,6 +53,26 @@ describe('排片回归测试', () => {
     await waitFor(() => expect(screen.getByRole('combobox', { name: '当前影院' })).toHaveValue('影院 B'));
   });
 
+  it('删除当前影院时只移除影院配置，不删除历史记录', () => {
+    const history = [{
+      id: 'history-a',
+      cinema: '影院 A',
+      date: '2026-10-01',
+      halls: [{ id: 'hall-1', name: '1 号厅' }],
+      hallSchedules: { 'hall-1': [] },
+      screenings: [],
+    }];
+    seedStorage({ 'cinema-options': ['影院 A', '影院 B'], cinema: '影院 A', history });
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: '删除当前影院' }));
+
+    expect(window.confirm).toHaveBeenCalled();
+    expect(screen.getByRole('combobox', { name: '当前影院' })).toHaveValue('影院 B');
+    expect(JSON.parse(localStorage.getItem('ps-cinema-options'))).toEqual(['影院 B']);
+    expect(JSON.parse(localStorage.getItem('ps-history'))).toHaveLength(1);
+  });
+
   it('同一电影排多场时，删除单场不会删除全部场次', async () => {
     render(<App />);
 

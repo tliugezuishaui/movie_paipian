@@ -703,6 +703,31 @@ function App() {
     setShowCinemaDialog(true);
   }
 
+  function deleteCinema() {
+    if (!cinema || !window.confirm(`确定删除影院“${cinema}”吗？历史记录不会被删除。`)) return;
+    const remaining = cinemaOptions.filter((name) => name !== cinema);
+    const nextCinema = remaining[0] || '';
+    setCinemaOptions(remaining);
+    setCinemaWorkspaces((current) => {
+      const next = { ...current };
+      delete next[cinema];
+      return next;
+    });
+    setCinema(nextCinema);
+    setEditingHistoryId(null);
+    if (nextCinema) {
+      switchCinema(nextCinema);
+    } else {
+      setDate(dateKey(new Date()));
+      setHalls([{ id: 'hall-1', name: '1 号厅', startTime: DEFAULT_START_TIME }]);
+      setActiveHallId('hall-1');
+      setHallSelections({ 'hall-1': [] });
+      setHallCounts({ 'hall-1': {} });
+      setHallSchedules({ 'hall-1': [] });
+    }
+    setNotice('影院已删除');
+  }
+
   function confirmAddCinema(event) {
     event.preventDefault();
     const nextCinema = cinemaDraft.trim();
@@ -840,12 +865,13 @@ function App() {
                 <div className="cinema-field">
                   <span className="field-icon"><Film size={17} /></span>
                   <label htmlFor="cinema-name">当前影院</label>
-                  <select id="cinema-name" className="cinema-select" value={cinema} onChange={(event) => switchCinema(event.target.value)}>
-                    <option value="">选择影院</option>
-                    {cinemaOptions.map((name) => <option key={name} value={name}>{name}</option>)}
-                  </select>
-                  <button className="add-cinema-button" onClick={addCinema} type="button"><Plus size={14} />新增影院</button>
-                </div>
+                    <select id="cinema-name" className="cinema-select" value={cinema} onChange={(event) => switchCinema(event.target.value)}>
+                      <option value="">选择影院</option>
+                      {cinemaOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+                    </select>
+                    <button className="add-cinema-button" onClick={addCinema} type="button"><Plus size={14} />新增影院</button>
+                    <button className="remove-cinema-button" onClick={deleteCinema} type="button" disabled={!cinema} aria-label="删除当前影院" title="删除当前影院"><Trash2 size={14} /></button>
+                  </div>
                 <button className="settings-link" onClick={() => setShowSettings(true)}>规则设置 <ChevronDown size={14} /></button>
               </div>
 
