@@ -477,30 +477,30 @@ h1{font-family:'Noto Sans SC',sans-serif;font-size:27px;line-height:1.4;font-wei
   .date-display,.date-display input{font-size:13px}
   .section-heading h2{font-size:17px}
   .section-count{font-size:11px}
-  .movie-title{font-size:12px;line-height:1.35}
-  .movie-meta{font-size:10px}
+  .movie-title{font-size:13px;line-height:1.4}
+  .movie-meta{font-size:11px}
   .movies-heading>.library-heading-actions .text-action{font-size:11px}
-  .generate-button,.clear-action,.export-button,.save-history-button{font-size:12px}
-  .timeline-topline{font-size:11px}
-  .time-column{font-size:12px}
-  .screening-info strong{font-size:12px}
-  .screening-info span{font-size:10px;line-height:1.4}
-  .edit-time input{font-size:11px}
-  .cleaning-row,.cleaning-duration{font-size:10px}
-  .timeline-footer>span{font-size:10px}
-  .timeline-footer>button{font-size:11px}
-  .summary-row{font-size:10px;line-height:1.35}
-  .history-cinema-group-head{font-size:13px}
-  .history-cinema-group-head span{font-size:10px}
-  .day-history-card-head>strong{font-size:13px}
-  .day-history-summary{font-size:11px}
-  .history-hall-tags span{font-size:10px}
-  .history-load{font-size:11px}
-  .detail-empty,.empty-history>span{font-size:11px}
-  .calendar-weekdays span{font-size:10px}
-  .calendar-day{font-size:12px}
-  .calendar-festival{font-size:9px}
-  .calendar-legend{font-size:10px}
+  .generate-button,.clear-action,.export-button,.save-history-button{font-size:13px}
+  .timeline-topline{font-size:12px}
+  .time-column{font-size:13px}
+  .screening-info strong{font-size:13px}
+  .screening-info span{font-size:11px;line-height:1.45}
+  .edit-time input{font-size:12px}
+  .cleaning-row,.cleaning-duration{font-size:11px}
+  .timeline-footer>span{font-size:11px}
+  .timeline-footer>button{font-size:12px}
+  .summary-row{font-size:11px;line-height:1.4}
+  .history-cinema-group-head{font-size:14px}
+  .history-cinema-group-head span{font-size:11px}
+  .day-history-card-head>strong{font-size:14px}
+  .day-history-summary{font-size:12px}
+  .history-hall-tags span{font-size:11px}
+  .history-load{font-size:12px}
+  .detail-empty,.empty-history>span{font-size:12px}
+  .calendar-weekdays span{font-size:11px}
+  .calendar-day{font-size:13px}
+  .calendar-festival{font-size:10px}
+  .calendar-legend{font-size:11px}
   .modal-kicker{font-size:10px}
   .modal-head h2{font-size:21px}
   .form-row strong,.editor-input{font-size:12px}
@@ -511,6 +511,6 @@ h1{font-family:'Noto Sans SC',sans-serif;font-size:27px;line-height:1.4;font-wei
   .search-form input{font-size:12px}
   .library-result-info strong{font-size:12px}
   .library-result-info span{font-size:10px}
-  .preview-date,.history-preview-screening span,.history-preview-screening small{font-size:10px}
-  .history-preview-screening strong{font-size:11px}
+  .preview-date,.history-preview-screening span,.history-preview-screening small{font-size:11px}
+  .history-preview-screening strong{font-size:12px}
 }

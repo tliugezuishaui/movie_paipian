@@ -605,20 +605,26 @@ function App() {
     const entrySchedules = entry.hallSchedules || { legacy: entry.screenings || [] };
     const columnWidth = 260;
     const rowHeight = 96;
-    const headerHeight = 92;
+    const headerHeight = 126;
+    const scale = Math.min(3, Math.max(2, window.devicePixelRatio || 1));
     const maxRows = Math.max(1, ...entryHalls.map((hall) => (entrySchedules[hall.id] || []).length));
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(720, entryHalls.length * columnWidth + 40);
-    canvas.height = headerHeight + maxRows * rowHeight + 30;
+    const logicalWidth = Math.max(720, entryHalls.length * columnWidth + 40);
+    const logicalHeight = headerHeight + maxRows * rowHeight + 30;
+    canvas.width = Math.round(logicalWidth * scale);
+    canvas.height = Math.round(logicalHeight * scale);
     const context = canvas.getContext('2d');
+    context.scale(scale, scale);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
     context.fillStyle = '#f6f5f1';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillRect(0, 0, logicalWidth, logicalHeight);
     context.fillStyle = '#242a27';
     context.font = '600 24px Microsoft YaHei, sans-serif';
-    context.fillText(entry.cinema || '未命名影院', 20, 34);
+    context.fillText(entry.cinema || '未命名影院', 20, 38);
     context.fillStyle = '#89908b';
     context.font = '14px Microsoft YaHei, sans-serif';
-    context.fillText(`${entry.date}  ·  排片预览`, 20, 62);
+    context.fillText(`${entry.date}  ·  排片预览`, 20, 72);
 
     const imageCache = new Map();
     async function getPoster(posterId, legacyPoster) {
