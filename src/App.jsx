@@ -12,6 +12,7 @@ import {
   Download, Eye, RotateCcw, Settings2, Sparkles, Trash2, Upload, X,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { getPoster, removePoster, savePoster, savePosterDataUrl } from './posterStore';
 
 const pad = (value) => String(value).padStart(2, '0');
 const DEFAULT_START_TIME = '09:00';
@@ -23,7 +24,15 @@ const timeLabel = (value) => `${value >= 1440 ? '次日 ' : ''}${pad(Math.floor(
 const roundUp = (value, step) => Math.ceil(value / step) * step;
 const dateKey = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 const minutesFromTime = (value) => value.split(':').reduce((sum, part) => sum * 60 + Number(part), 0);
-const hasLocalPoster = (poster) => typeof poster === 'string' && poster.startsWith('data:image/');
+const hasLocalPoster = (poster) => typeof poster === 'string' && poster.length > 0;
+const isLegacyPoster = (poster) => typeof poster === 'string' && poster.startsWith('data:image/');
+const legacyPosterKey = (id, poster) => {
+  let hash = 0;
+  for (let index = 0; index < poster.length; index += 1) {
+    hash = (hash * 31 + poster.charCodeAt(index)) | 0;
+  }
+  return `legacy-${id}-${Math.abs(hash)}`;
+};
 const normalizeHalls = (value) => value.map((hall) => ({
   ...hall,
   startTime: hall.startTime || hall.openTime || DEFAULT_START_TIME,
@@ -49,6 +58,15 @@ function readStored(key, fallback) {
   }
 }
 
+function writeStored(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function compressPoster(file) {
   if (!file.type.startsWith('image/')) throw new Error('请选择图片文件');
   if (file.size > 12 * 1024 * 1024) throw new Error('图片不能超过 12 MB');
@@ -61,12 +79,7 @@ async function compressPoster(file) {
   image.close();
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.78));
   if (!blob) throw new Error('图片处理失败，请换一张图片');
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('图片读取失败，请重试'));
-    reader.readAsDataURL(blob);
-  });
+  return blob;
 }
 
 function App() {
@@ -104,6 +117,7 @@ function App() {
   const [editingHistoryId, setEditingHistoryId] = useState(null);
   const [previewHistoryEntry, setPreviewHistoryEntry] = useState(null);
   const [notice, setNotice] = useState('');
+  const [posterUrls, setPosterUrls] = useState({});
   const backupInputRef = useRef(null);
 
   const sensors = useSensors(
@@ -112,21 +126,119 @@ function App() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  useEffect(() => localStorage.setItem('ps-movies', JSON.stringify(movies)), [movies]);
-  useEffect(() => localStorage.setItem('ps-cinema', cinema), [cinema]);
-  useEffect(() => localStorage.setItem('ps-cinema-options', JSON.stringify(cinemaOptions)), [cinemaOptions]);
-  useEffect(() => localStorage.setItem('ps-cinema-workspaces', JSON.stringify(cinemaWorkspaces)), [cinemaWorkspaces]);
-  useEffect(() => localStorage.setItem('ps-halls', JSON.stringify(halls)), [halls]);
-  useEffect(() => localStorage.setItem('ps-active-hall', JSON.stringify(activeHallId)), [activeHallId]);
-  useEffect(() => localStorage.setItem('ps-hall-selections', JSON.stringify(hallSelections)), [hallSelections]);
-  useEffect(() => localStorage.setItem('ps-hall-counts', JSON.stringify(hallCounts)), [hallCounts]);
-  useEffect(() => localStorage.setItem('ps-hall-schedules', JSON.stringify(hallSchedules)), [hallSchedules]);
-  useEffect(() => localStorage.setItem('ps-history', JSON.stringify(history)), [history]);
+  const persist = (key, value) => {
+    if (!writeStored(key, value)) {
+      setNotice('本地存储空间不足，请移除部分封面或历史记录');
+    }
+  };
+
+  useEffect(() => persist('ps-movies', JSON.stringify(movies)), [movies]);
+  useEffect(() => persist('ps-cinema', cinema), [cinema]);
+  useEffect(() => persist('ps-cinema-options', JSON.stringify(cinemaOptions)), [cinemaOptions]);
+  useEffect(() => persist('ps-cinema-workspaces', JSON.stringify(cinemaWorkspaces)), [cinemaWorkspaces]);
+  useEffect(() => persist('ps-halls', JSON.stringify(halls)), [halls]);
+  useEffect(() => persist('ps-active-hall', JSON.stringify(activeHallId)), [activeHallId]);
+  useEffect(() => persist('ps-hall-selections', JSON.stringify(hallSelections)), [hallSelections]);
+  useEffect(() => persist('ps-hall-counts', JSON.stringify(hallCounts)), [hallCounts]);
+  useEffect(() => persist('ps-hall-schedules', JSON.stringify(hallSchedules)), [hallSchedules]);
+  useEffect(() => persist('ps-history', JSON.stringify(history)), [history]);
   useEffect(() => {
     if (!notice) return undefined;
     const timer = window.setTimeout(() => setNotice(''), 2400);
     return () => window.clearTimeout(timer);
   }, [notice]);
+
+  useEffect(() => {
+    let active = true;
+    let createdUrls = [];
+    const posterIds = new Set();
+    movies.forEach((movie) => movie.posterId && posterIds.add(movie.posterId));
+    history.forEach((entry) => {
+      [...Object.values(entry.hallSchedules || {}).flat(), ...(entry.screenings || [])].forEach((item) => {
+        if (item.movie?.posterId) posterIds.add(item.movie.posterId);
+      });
+    });
+    Promise.all([...posterIds].map(async (posterId) => {
+      const blob = await getPoster(posterId);
+      if (!blob) return null;
+      const url = URL.createObjectURL(blob);
+      createdUrls.push(url);
+      return [posterId, url];
+    })).then((entries) => {
+      if (!active) {
+        entries.forEach((entry) => entry && URL.revokeObjectURL(entry[1]));
+        return;
+      }
+      setPosterUrls(Object.fromEntries(entries.filter(Boolean)));
+    }).catch(() => setNotice('封面读取失败，请重新选择图片'));
+    return () => {
+      active = false;
+      createdUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [movies, history]);
+
+  useEffect(() => {
+    const legacyPosters = new Map();
+    movies.forEach((movie) => {
+      if (isLegacyPoster(movie.poster) && !movie.posterId) {
+        legacyPosters.set(legacyPosterKey(movie.id, movie.poster), movie.poster);
+      }
+    });
+    history.forEach((entry) => Object.values(entry.hallSchedules || {}).flat().forEach((item) => {
+      const movie = item.movie;
+      if (movie && isLegacyPoster(movie.poster) && !movie.posterId) {
+        legacyPosters.set(legacyPosterKey(movie.id, movie.poster), movie.poster);
+      }
+    }));
+    if (!legacyPosters.size) return undefined;
+    let active = true;
+    Promise.all([...legacyPosters.entries()].map(async ([posterId, poster]) => {
+      await savePosterDataUrl(posterId, poster);
+      return [poster, posterId];
+    })).then((migratedIds) => {
+      if (!active) return;
+      const posterIdsByData = new Map(migratedIds.map(([poster, posterId]) => [poster, posterId]));
+      const migrateMovie = (movie) => {
+        if (!movie || !isLegacyPoster(movie.poster) || movie.posterId) return movie;
+        return { ...movie, posterId: posterIdsByData.get(movie.poster), poster: '' };
+      };
+      const migrateSchedule = (schedule = []) => schedule.map((item) => ({ ...item, movie: migrateMovie(item.movie) }));
+      setMovies((current) => current.map(migrateMovie));
+      setHallSchedules((current) => Object.fromEntries(Object.entries(current).map(([hallId, schedule]) => [hallId, migrateSchedule(schedule)])));
+      setCinemaWorkspaces((current) => Object.fromEntries(Object.entries(current).map(([name, workspace]) => [name, {
+        ...workspace,
+        hallSchedules: Object.fromEntries(Object.entries(workspace.hallSchedules || {}).map(([hallId, schedule]) => [hallId, migrateSchedule(schedule)])),
+      }])));
+      setHistory((current) => current.map((entry) => ({
+        ...entry,
+        screenings: migrateSchedule(entry.screenings),
+        hallSchedules: Object.fromEntries(Object.entries(entry.hallSchedules || {}).map(([hallId, schedule]) => [hallId, migrateSchedule(schedule)])),
+      })));
+    }).catch(() => setNotice('旧版封面迁移失败，请重新选择图片'));
+    return () => { active = false; };
+  }, [movies, history]);
+
+  function getPosterSrc(movie) {
+    return posterUrls[movie.posterId] || movie.poster || '';
+  }
+
+  function openMovieEditor(movie) {
+    if (!movie) {
+      setEditor({ id: null, title: '', runtime: '', poster: '', posterId: '', posterBlob: null });
+      return;
+    }
+    setEditor({ ...movie, poster: getPosterSrc(movie), posterBlob: null });
+  }
+
+  function snapshotSchedules(schedules) {
+    return Object.fromEntries(Object.entries(schedules).map(([hallId, schedule]) => [
+      hallId,
+      schedule.map((item) => ({
+        ...item,
+        movie: { ...item.movie, poster: '', posterId: item.movie.posterId || '' },
+      })),
+    ]));
+  }
 
   useEffect(() => {
     if (!cinema.trim()) return;
@@ -392,9 +504,18 @@ function App() {
       id: editor.id || `local-${Date.now()}`,
       title,
       runtime,
-      poster: editor.poster || '',
+      posterId: editor.posterId || '',
       status: editor.status || '上映',
     };
+    try {
+      if (editor.posterBlob) {
+        movie.posterId = `${movie.id}-${Date.now()}`;
+        await savePoster(movie.posterId, editor.posterBlob);
+      }
+    } catch {
+      setPosterError('封面保存失败，请重试');
+      return;
+    }
     setMovies((current) => editor.id
       ? current.map((item) => item.id === editor.id ? movie : item)
       : [movie, ...current]);
@@ -411,6 +532,8 @@ function App() {
   }
 
   function deleteMovie(movieId) {
+    const movie = movies.find((item) => item.id === movieId);
+    if (movie?.posterId) removePoster(movie.posterId).catch(() => {});
     setMovies((current) => current.filter((movie) => movie.id !== movieId));
     setHallSelections((current) => Object.fromEntries(Object.entries(current).map(([hallId, selection]) => [
       hallId, selection.filter((id) => id !== movieId),
@@ -435,8 +558,9 @@ function App() {
       || history.find((item) => item.cinema === cinema && item.date === date);
     const entryId = existingEntry?.id || Date.now();
     const entry = {
-      id: entryId, cinema, date, screenings, cleaning, halls,
-      hallSchedules, hallSelections, hallCounts, savedAt: new Date().toISOString(),
+      id: entryId, cinema, date, screenings: snapshotSchedules({ active: screenings }).active,
+      cleaning, halls, hallSchedules: snapshotSchedules(hallSchedules),
+      hallSelections, hallCounts, savedAt: new Date().toISOString(),
     };
     setHistory((current) => {
       const hasExisting = current.some((item) => item.id === entryId);
@@ -497,7 +621,8 @@ function App() {
     context.fillText(`${entry.date}  ·  排片预览`, 20, 62);
 
     const imageCache = new Map();
-    async function getPoster(poster) {
+    async function getPoster(posterId, legacyPoster) {
+      const poster = posterUrls[posterId] || legacyPoster;
       if (!hasLocalPoster(poster)) return null;
       if (!imageCache.has(poster)) {
         imageCache.set(poster, new Promise((resolve) => {
@@ -510,7 +635,7 @@ function App() {
       return imageCache.get(poster);
     }
 
-    await Promise.all(entryHalls.flatMap((hall) => (entrySchedules[hall.id] || []).map((item) => getPoster(item.movie.poster))));
+    await Promise.all(entryHalls.flatMap((hall) => (entrySchedules[hall.id] || []).map((item) => getPoster(item.movie.posterId, item.movie.poster))));
     for (const [hallIndex, hall] of entryHalls.entries()) {
       const x = 20 + hallIndex * columnWidth;
       context.fillStyle = '#426f5a';
@@ -524,7 +649,7 @@ function App() {
         context.fillRect(x, y, columnWidth - 12, rowHeight - 8);
         context.strokeStyle = '#e7e7e1';
         context.strokeRect(x, y, columnWidth - 12, rowHeight - 8);
-        const poster = await getPoster(item.movie.poster);
+        const poster = await getPoster(item.movie.posterId, item.movie.poster);
         if (poster) {
           context.drawImage(poster, x + 10, y + 10, 42, 60);
         } else {
@@ -564,7 +689,7 @@ function App() {
       activeHallId,
       hallSelections,
       hallCounts,
-      hallSchedules,
+      hallSchedules: snapshotSchedules(hallSchedules),
       history,
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -807,8 +932,9 @@ function App() {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      const poster = await compressPoster(file);
-      setEditor((current) => ({ ...current, poster }));
+      const blob = await compressPoster(file);
+      const poster = URL.createObjectURL(blob);
+      setEditor((current) => ({ ...current, poster, posterBlob: blob }));
       setPosterError('');
     } catch (error) {
       setPosterError(error.message);
@@ -879,7 +1005,7 @@ function App() {
                 <div><h2>全影院共享片库</h2><span className="section-count">{movies.length} 部影片 · 当前排入 {activeHall?.name || '-'}</span></div>
                 <div className="library-heading-actions">
                   {movies.length > 5 && <label className="movie-filter"><Search size={14} /><input aria-label="筛选片库电影" value={movieSearch} onChange={(event) => setMovieSearch(event.target.value)} placeholder="筛选片名" /></label>}
-                  <button className="text-action" onClick={() => setEditor({ id: null, title: '', runtime: '', poster: '' })}><Plus size={15} />录入电影</button>
+                  <button className="text-action" onClick={() => openMovieEditor()}><Plus size={15} />录入电影</button>
                   <button className="text-action" onClick={() => { setShowLibrary(true); setQuery(''); }}><Film size={15} />管理片库</button>
                 </div>
               </div>
@@ -896,20 +1022,20 @@ function App() {
                   return (
                     <article className={`movie-card ${isSelected ? 'chosen' : ''}`} key={movie.id}>
                       <button className="poster-button" onClick={() => addMovie(movie)} disabled={!canAddMovie(movie)} title={isSelected ? `移除${movie.title}` : canAddMovie(movie) ? `加入排片${movie.title}` : '营业时间已满'} aria-label={`${isSelected ? '移除' : '加入排片'}${movie.title}`}>
-                        {hasLocalPoster(movie.poster)
-                          ? <img className="poster" src={movie.poster} alt={`${movie.title}封面`} />
+                        {hasLocalPoster(getPosterSrc(movie))
+                          ? <img className="poster" src={getPosterSrc(movie)} alt={`${movie.title}封面`} />
                           : <div className="poster poster-fallback"><span>{movie.title}</span></div>}
                         <span className={`poster-status ${movie.status === '下映' ? 'ended' : ''}`}>{movie.status || '上映'}</span>
                         <span className={`poster-add ${isSelected ? 'added' : ''}`}>{isSelected ? <Check size={16} /> : <Plus size={17} />}</span>
                       </button>
-                      <button className="movie-edit" title="编辑电影" aria-label={`编辑${movie.title}`} onClick={() => setEditor({ ...movie })}><Pencil size={13} /></button>
+                      <button className="movie-edit" title="编辑电影" aria-label={`编辑${movie.title}`} onClick={() => openMovieEditor(movie)}><Pencil size={13} /></button>
                       <div className="movie-title" title={movie.title}>{movie.title}</div>
                       <div className="movie-meta">{movie.runtime} 分钟</div>
                     </article>
                   );
                 })}
                 {movies.length > 0 && visibleMovies.length === 0 && <div className="movie-filter-empty">没有匹配的电影</div>}
-                {!movies.length && <button className="movie-library-empty" onClick={() => setEditor({ id: null, title: '', runtime: '', poster: '' })}><span className="add-tile-icon"><Plus size={18} /></span><strong>添加第一部电影</strong><span>本地录入片名、时长和封面</span></button>}
+                {!movies.length && <button className="movie-library-empty" onClick={() => openMovieEditor()}><span className="add-tile-icon"><Plus size={18} /></span><strong>添加第一部电影</strong><span>本地录入片名、时长和封面</span></button>}
               </div>
 
               <div className="schedule-header">
@@ -947,6 +1073,7 @@ function App() {
                         <SortableScreening
                           key={item.id}
                           item={item}
+                          posterUrls={posterUrls}
                           index={index}
                           cleaning={cleaning}
                           dragging={draggingId === item.id}
@@ -964,7 +1091,7 @@ function App() {
               {screenings.length > 0 && <div className="summary-row"><span>总放映时长 <strong>{Math.floor(totalRuntime / 60)} 小时 {totalRuntime % 60} 分</strong></span><span>保洁时间 <strong>{screenings.length * cleaning} 分钟</strong></span><span>预计收场 <strong>{timeLabel(screenings[screenings.length - 1].cleaningEnd)}</strong></span></div>}
             </>
           ) : (
-            <HistoryView history={history} onLoad={loadHistory} onDelete={setDeleteHistoryId} onPreview={setPreviewHistoryEntry} />
+            <HistoryView history={history} posterUrls={posterUrls} onLoad={loadHistory} onDelete={setDeleteHistoryId} onPreview={setPreviewHistoryEntry} />
           )}
         </section>
       </main>
@@ -997,12 +1124,12 @@ function App() {
         <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowLibrary(false); }}>
           <section className="modal search-modal movie-modal" role="dialog" aria-modal="true" aria-labelledby="library-title">
             <div className="modal-head"><div><span className="modal-kicker">仅保存在此设备</span><h2 id="library-title">我的片库</h2></div><button className="icon-button" onClick={() => setShowLibrary(false)} aria-label="关闭"><X size={18} /></button></div>
-            <div className="library-tools"><label className="search-form"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="查找已录入的电影" /></label><button className="generate-button" onClick={() => setEditor({ id: null, title: '', runtime: '', poster: '' })}><Plus size={15} />录入电影</button></div>
+            <div className="library-tools"><label className="search-form"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="查找已录入的电影" /></label><button className="generate-button" onClick={() => openMovieEditor()}><Plus size={15} />录入电影</button></div>
             <div className="library-results">
               {filteredMovies.map((movie) => <div className="library-result" key={movie.id}>
-                {hasLocalPoster(movie.poster) ? <img src={movie.poster} alt="" /> : <span className="result-placeholder"><span>{movie.title}</span></span>}
+                {hasLocalPoster(getPosterSrc(movie)) ? <img src={getPosterSrc(movie)} alt="" /> : <span className="result-placeholder"><span>{movie.title}</span></span>}
                 <div className="library-result-info"><strong>{movie.title}</strong><span>{movie.runtime} 分钟</span></div>
-                <button className="result-add" onClick={() => setEditor({ ...movie })} aria-label={`编辑${movie.title}`} title="编辑"><Pencil size={15} /></button>
+                <button className="result-add" onClick={() => openMovieEditor(movie)} aria-label={`编辑${movie.title}`} title="编辑"><Pencil size={15} /></button>
                 <button className="result-delete" onClick={() => deleteMovie(movie.id)} aria-label={`删除${movie.title}`} title="删除"><Trash2 size={15} /></button>
               </div>)}
               {!filteredMovies.length && <div className="no-results">{movies.length ? '没有找到这部电影' : '还没有录入电影'}</div>}
@@ -1064,7 +1191,7 @@ function App() {
               <div className="poster-editor-row">
                 <div className="poster-preview">{editor.poster ? <img src={editor.poster} alt="电影封面预览" /> : <div className="poster-name-preview"><Film size={19} /><span>{editor.title || '电影名称'}</span></div>}</div>
                 <div className="poster-upload-copy"><strong>电影封面</strong><span>可选 · 图片会压缩后保存在本设备</span><label className="upload-button"><ImagePlus size={15} />{editor.poster ? '更换封面' : '选择图片'}<input type="file" accept="image/*" onChange={handlePosterChange} /></label>{posterError && <small className="poster-error">{posterError}</small>}</div>
-                {editor.poster && <button type="button" className="remove-poster" onClick={() => setEditor((current) => ({ ...current, poster: '' }))} aria-label="移除封面"><X size={14} /></button>}
+                {editor.poster && <button type="button" className="remove-poster" onClick={() => setEditor((current) => ({ ...current, poster: '', posterBlob: null, posterId: '' }))} aria-label="移除封面"><X size={14} /></button>}
               </div>
               <button className="primary-wide" type="submit">{editor.id ? '保存修改' : '添加到片库'}</button>
             </form>
@@ -1097,6 +1224,7 @@ function App() {
           entry={previewHistoryEntry}
           onClose={() => setPreviewHistoryEntry(null)}
           onSaveImage={saveHistoryPreviewImage}
+          posterUrls={posterUrls}
         />
       )}
     </div>
@@ -1104,7 +1232,7 @@ function App() {
 }
 
 function SortableScreening({
-  item, index, cleaning, dragging, onStartChange, onAddMovie, onRemoveScreening,
+  item, index, cleaning, dragging, posterUrls, onStartChange, onAddMovie, onRemoveScreening,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 2 : undefined };
@@ -1114,8 +1242,8 @@ function SortableScreening({
       <div className="time-column"><strong>{timeLabel(item.start)}</strong><span className="time-track"><i /></span></div>
       <div className="screening-block">
         <button className="drag-handle" {...attributes} {...listeners} aria-label={`拖动调整${item.movie.title}顺序`} title="拖动调整顺序"><GripVertical size={17} /></button>
-        {hasLocalPoster(item.movie.poster)
-          ? <img src={item.movie.poster} alt="" />
+        {hasLocalPoster(posterUrls[item.movie.posterId] || item.movie.poster)
+          ? <img src={posterUrls[item.movie.posterId] || item.movie.poster} alt="" />
           : <div className="screening-poster-fallback">{item.movie.title}</div>}
         <div className="screening-info"><strong>{item.movie.title}</strong><span>{timeLabel(item.start)} – {timeLabel(item.end)} <i>·</i> {item.movie.runtime} 分钟</span></div>
         <label className="edit-time"><span>开场</span><input type="time" value={startValue} aria-label={`${item.movie.title}开始时间`} onChange={(event) => onStartChange(item.id, event.target.value)} /></label>
@@ -1143,7 +1271,7 @@ function SortableScreening({
   );
 }
 
-function HistoryView({ history, onLoad, onDelete, onPreview }) {
+function HistoryView({ history, posterUrls, onLoad, onDelete, onPreview }) {
   const today = new Date();
   const initialHistoryDate = history[0]?.date ? new Date(`${history[0].date}T12:00:00`) : today;
   const [month, setMonth] = useState(new Date(initialHistoryDate.getFullYear(), initialHistoryDate.getMonth(), 1));
@@ -1217,7 +1345,10 @@ function HistoryView({ history, onLoad, onDelete, onPreview }) {
                 <div className="day-history-card-head"><strong>{entry.cinema || '未命名影院'}</strong><div><button className="history-load" onClick={() => onPreview(entry)}><Eye size={14} />预览</button><button className="history-load" onClick={() => onLoad(entry)}>打开 <ChevronRight size={14} /></button><button className="history-delete" aria-label="删除计划" title="删除计划" onClick={() => onDelete(entry.id)}><Trash2 size={15} /></button></div></div>
                 <div className="day-history-summary"><span><Clock3 size={13} />{firstScreening ? timeLabel(firstScreening.start) : '--:--'} <i>→</i> {lastScreening ? timeLabel(lastScreening.cleaningEnd) : '--:--'}</span><span>{allScreenings.length} 场 · {entryHalls.length} 个影厅</span></div>
                 <div className="history-hall-tags">{entryHalls.map((hall) => <span key={hall.id}>{hall.name} <b>{(entrySchedules[hall.id] || []).length} 场</b></span>)}</div>
-                <div className="history-posters">{allScreenings.slice(0, 8).map((item) => hasLocalPoster(item.movie.poster) ? <img key={item.id} src={item.movie.poster} alt={item.movie.title} title={item.movie.title} /> : <span key={item.id} title={item.movie.title}>{item.movie.title.slice(0, 2)}</span>)}</div>
+                <div className="history-posters">{allScreenings.slice(0, 8).map((item) => {
+                  const poster = posterUrls[item.movie.posterId] || item.movie.poster;
+                  return hasLocalPoster(poster) ? <img key={item.id} src={poster} alt={item.movie.title} title={item.movie.title} /> : <span key={item.id} title={item.movie.title}>{item.movie.title.slice(0, 2)}</span>;
+                })}</div>
                 </article>
               </React.Fragment>;
             })}</div>}
@@ -1228,7 +1359,7 @@ function HistoryView({ history, onLoad, onDelete, onPreview }) {
   );
 }
 
-function HistoryPreview({ entry, onClose, onSaveImage }) {
+function HistoryPreview({ entry, posterUrls, onClose, onSaveImage }) {
   const entryHalls = entry.halls || [{ id: 'legacy', name: '1 号厅' }];
   const entrySchedules = entry.hallSchedules || { legacy: entry.screenings || [] };
 
@@ -1246,8 +1377,8 @@ function HistoryPreview({ entry, onClose, onSaveImage }) {
                 <div className="history-preview-hall-head">{hall.name}</div>
                 {(entrySchedules[hall.id] || []).map((item) => (
                   <article className="history-preview-screening" key={item.id}>
-                    {hasLocalPoster(item.movie.poster)
-                      ? <img src={item.movie.poster} alt="" />
+                    {hasLocalPoster(posterUrls[item.movie.posterId] || item.movie.poster)
+                      ? <img src={posterUrls[item.movie.posterId] || item.movie.poster} alt="" />
                       : <div className="history-preview-poster">{item.movie.title}</div>}
                     <div><strong>{item.movie.title}</strong><span>{timeLabel(item.start)} - {timeLabel(item.end)}</span><small>{item.movie.runtime} 分钟</small></div>
                   </article>

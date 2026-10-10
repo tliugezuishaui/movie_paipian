@@ -1,6 +1,6 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../src/App.jsx';
 
 const movies = [
@@ -35,6 +35,21 @@ afterEach(() => {
 });
 
 describe('排片回归测试', () => {
+  it('本地存储写入失败时页面仍然可以正常渲染', async () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    });
+
+    try {
+      render(<App />);
+
+      expect(await screen.findByText('私人排片工作台')).toBeInTheDocument();
+      expect(await screen.findByText('本地存储空间不足，请移除部分封面或历史记录')).toBeInTheDocument();
+    } finally {
+      setItemSpy.mockRestore();
+    }
+  });
+
   it('新增影院时校验空名称和重复名称，并支持创建', async () => {
     seedStorage({ 'cinema-options': ['影院 A'], cinema: '影院 A' });
     render(<App />);
